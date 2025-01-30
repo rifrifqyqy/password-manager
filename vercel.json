@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "Cargo.toml",
+      "use": "@vercel/rust"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/.*",
+      "dest": "/target/debug/password-mgr"
+    }
+  ]
+}
