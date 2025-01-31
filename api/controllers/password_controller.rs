@@ -6,6 +6,7 @@ use crate::models::password_entry::PasswordEntry;
 
 pub async fn create_entry(entry: web::Json<PasswordEntry>, data: web::Data<Arc<Client>>) -> impl Responder {
     let collection = data.database("password_manager").collection::<PasswordEntry>("entries");
+
     let new_entry = PasswordEntry {
         id: None,
         name: entry.name.clone(),
@@ -13,13 +14,35 @@ pub async fn create_entry(entry: web::Json<PasswordEntry>, data: web::Data<Arc<C
         password: entry.password.clone(),
         image: entry.image.clone(),
     };
-    collection.insert_one(new_entry, None).await.unwrap();
-    HttpResponse::Ok().json("Entry created")
+
+    match collection.insert_one(new_entry, None).await {
+        Ok(_) => {
+            println!("Entry berhasil dibuat");
+            HttpResponse::Ok().json("Entry created")
+        }
+        Err(err) => {
+            eprintln!("Error saat menyimpan entry: {}", err);
+            HttpResponse::InternalServerError().json("Gagal membuat entry")
+        }
+    }
 }
 
 pub async fn get_entries(data: web::Data<Arc<Client>>) -> impl Responder {
     let collection = data.database("password_manager").collection::<PasswordEntry>("entries");
-    let cursor = collection.find(None, None).await.unwrap();
-    let entries: Vec<_> = cursor.try_collect().await.unwrap();
-    HttpResponse::Ok().json(entries)
+
+    match collection.find(None, None).await {
+        Ok(cursor) => {
+            match cursor.try_collect::<Vec<PasswordEntry>>().await {
+                Ok(entries) => HttpResponse::Ok().json(entries),
+                Err(err) => {
+                    eprintln!("Error saat mengambil entries: {}", err);
+                    HttpResponse::InternalServerError().json("Gagal mengambil data")
+                }
+            }
+        }
+        Err(err) => {
+            eprintln!("Error saat query database: {}", err);
+            HttpResponse::InternalServerError().json("Gagal mengambil data dari database")
+        }
+    }
 }
